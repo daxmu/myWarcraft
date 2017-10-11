@@ -1,7 +1,13 @@
 #include <iostream>
 #include <string>
-#include "Headquarter.h"
 #include "define.h"
+#include "Headquarter.h"
+
+#ifndef _incTOOLS_
+#define _incTOOLS_
+#include "tools.h"
+#endif
+
 using namespace std;
 
 int main(){
@@ -22,11 +28,11 @@ int main(){
 
 		while(1){
 			bool loop_finish = true;
-			if(red.get_life_status()){
+			if(red.get_lifeStatus()){
 				red.create_warrior(time);
 				loop_finish = false;
 			}
-			if(blue.get_life_status()){
+			if(blue.get_lifeStatus()){
 				blue.create_warrior(time);
 				loop_finish = false;
 			}

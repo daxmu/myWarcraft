@@ -6,9 +6,6 @@
 using namespace std;
 
 class Headquarter;
-class Iceman;
-class Weapon;
-
 class myTime{
 	public:
 		myTime() = default;
@@ -50,360 +47,299 @@ class Weapon{
 	public:
 		Weapon() = default;
 		Weapon(int type){
-			weapon_type = type;
+			weaponType = type;
 			switch(type){
 				case 0:
-					weapon_name = "sword";
+					weaponName = "sword";
 					break;
 				case 1:
-					weapon_name = "bomb";
+					weaponName = "bomb";
 					break;
 				case 2:
-					weapon_name	= "arrow";
+					weaponName	= "arrow";
 					break;
 				default:
 					cout << "Error weapon type!" <<endl;
 			}
 		}
-		string get_Weapon_name(){return weapon_name;}
+		string get_weaponName() const {return weaponName;}
 	private:
-		string weapon_name;
-		int weapon_type;
+		string weaponName;
+		int weaponType;
 };
 
-class Iceman{
+class Warrior{
 	public:
-		Iceman() = default;
-		Iceman(Headquarter* master, int warrior_life, int warrior_num){
-			my_master	= master;
-			life_value	= warrior_life;
-			num_of_warrior	= warrior_num;
-			Weapon	a(warrior_num%3);
-			my_weapon	= a;
-		}
-		
-		string 	get_Weapon_name(){ return my_weapon.get_Weapon_name();}
-		int		get_Warrior_num(){ return num_of_warrior;}
-		int 	get_Strength(){return life_value;}
-	private:
-		Headquarter *my_master;
-		int	life_value;
-		int num_of_warrior;
-		Weapon my_weapon;
-		
+		Warrior(Headquarter* master_, int lifeValue_, int warriorNum_, int typeNum_):
+			master(master_), lifeValue(lifeValue_), warriorNum(warriorNum_), typeNum(typeNum_){}
+
+		int get_warriorNum() const {return warriorNum;}
+		int get_lifeValue() const {return lifeValue;}
+		int get_typeNum() const {return typeNum;}
+		virtual void print_exMessage() const = 0;
+		virtual string get_warriorName() const = 0;
+	protected:
+		Headquarter *master;
+		int lifeValue;
+		int	warriorNum;
+		int typeNum;
 };
 
-class Lion{
+class Iceman: public Warrior{
 	public:
-		Lion() = default;
-		Lion(Headquarter* master, int warrior_life, int warrior_num, int lion_loyalty){
-			my_master	= master;
-			life_value	= warrior_life;
-			num_of_warrior	= warrior_num;
-			loyalty		= lion_loyalty;
-			//lion has no weapon
-			//Weapon	a(warrior_num%3);
-			//my_weapon	= a;
+		Iceman(Headquarter* master_, int lifeValue_, int warriorNum_, int typeNum_):
+			Warrior(master_, lifeValue_, warriorNum_, typeNum_), weapon(warriorNum_%3){}
+		string get_weaponName() const {return weapon.get_weaponName();}
+		void print_exMessage() const {
+			cout << "It has a " << get_weaponName() << endl;
 		}
-		
-		//string 	get_Weapon_name(){ return my_weapon.get_Weapon_name();}
-		int get_Warrior_num(){ return num_of_warrior;}
-		int get_Strength(){return life_value;}
-		int get_Loyalty(){return loyalty;}
+		string get_warriorName() const {return name;}
 	private:
-		Headquarter *my_master;
-		int	life_value;
-		int num_of_warrior;
-		//Weapon my_weapon;
+		Weapon weapon;	
+		const static string name;
+};
+
+class Lion: public Warrior{
+	public:
+		Lion(Headquarter* master_, int lifeValue_, int warriorNum_, int loyalty_, int typeNum_):
+			Warrior(master_, lifeValue_, warriorNum_, typeNum_), loyalty(loyalty_){}
+		inline int get_loyalty() const {return loyalty;}
+		void print_exMessage() const {
+			cout << "It's loyalty is " << loyalty << endl;
+		}
+		string get_warriorName() const {return name;}
+	private:
 		int loyalty;
-};
-class Wolf{
-	public:
-		Wolf() = default;
-		Wolf(Headquarter* master, int warrior_life, int warrior_num){
-			my_master	= master;
-			life_value	= warrior_life;
-			num_of_warrior	= warrior_num;
-			//wolf has no weapon
-			//Weapon	a(warrior_num%3);
-			//my_weapon	= a;
-		}
-		
-		//string 	get_Weapon_name(){ return my_weapon.get_Weapon_name();}
-		int get_Warrior_num(){ return num_of_warrior;}
-		int get_Strength(){return life_value;}
-	private:
-		Headquarter *my_master;
-		int	life_value;
-		int num_of_warrior;
-		//Weapon my_weapon;
-	
-};
-class Ninja{
-	public:
-		Ninja() = default;
-		Ninja(Headquarter* master, int warrior_life, int warrior_num){
-			my_master	= master;
-			life_value	= warrior_life;
-			num_of_warrior	= warrior_num;
-			Weapon	a(warrior_num%3);
-			Weapon	b((warrior_num+1)%3);
-			my_weapon_1 = a;
-			my_weapon_2 = b;
-		}
-		
-		string 	get_Weapon1_name(){ return my_weapon_1.get_Weapon_name();}
-		string 	get_Weapon2_name(){ return my_weapon_2.get_Weapon_name();}
-		int get_Warrior_num(){ return num_of_warrior;}
-		int get_Strength(){return life_value;}
-	private:
-		Headquarter *my_master;
-		int	life_value;
-		int num_of_warrior;
-		Weapon my_weapon_1;
-		Weapon my_weapon_2;
-};
-class Dragon{
-	public:
-		Dragon() = default;
-		Dragon(Headquarter* master, int warrior_life, int warrior_num, double dragon_morale){
-			my_master	= master;
-			life_value	= warrior_life;
-			num_of_warrior	= warrior_num;
-			Weapon	a(warrior_num%3);
-			my_weapon	= a;
-			morale		= dragon_morale;
-		}
-		
-		string 	get_Weapon_name(){ return my_weapon.get_Weapon_name();}
-		int get_Warrior_num(){ return num_of_warrior;}
-		int get_Strength(){return life_value;}
-		double get_Morale(){return morale;}
-	private:
-		Headquarter *my_master;
-		int	life_value;
-		int num_of_warrior;
-		double morale;
-		Weapon my_weapon;
+		const static string name;
 };
 
+class Wolf: public Warrior{
+	public:
+		Wolf(Headquarter* master_, int lifeValue_, int warriorNum_, int typeNum_):
+			Warrior(master_, lifeValue_, warriorNum_, typeNum_){}
+		void print_exMessage() const {}
+		string get_warriorName() const {return name;}
+	private:
+		const static string name;
+};
+
+class Ninja: public Warrior{
+	public:
+		Ninja(Headquarter* master_, int lifeValue_, int warriorNum_, int typeNum_):
+			Warrior(master_, lifeValue_, warriorNum_, typeNum_), weapon1(warriorNum_%3), weapon2((warriorNum_+1)%3){}
+		string get_weapon1Name() const {return weapon1.get_weaponName();}
+		string get_weapon2Name() const {return weapon2.get_weaponName();}
+		void print_exMessage() const {
+			cout << "It has a " << weapon1.get_weaponName() << " and a "
+				 << weapon2.get_weaponName() << endl;
+		}
+		string get_warriorName() const {return name;}
+	private:
+		Weapon weapon1;
+		Weapon weapon2;
+		const static string name;
+};
+
+class Dragon: public Warrior{
+	public:
+		Dragon(Headquarter* master_, int lifeValue_, int warriorNum_, double morale_, int typeNum_):
+			Warrior(master_, lifeValue_, warriorNum_, typeNum_), weapon(warriorNum_%3), morale(morale_){}
+		string get_weaponName() const {return weapon.get_weaponName();}
+		double get_morale(){return morale;}
+		void print_exMessage() const {
+			cout << "It has a " << weapon.get_weaponName() << ",and it's morale is ";
+			cout << setiosflags(ios::fixed) << setprecision(2) << morale 
+				 << endl;
+		}
+		string get_warriorName() const {return name;}
+	private:
+		Weapon weapon;	
+		double morale;
+		const static string name;
+};
+
+const string Iceman::name	= "iceman";
+const string Lion::name 	= "lion";
+const string Wolf::name 	= "wolf";
+const string Ninja::name 	= "ninja";
+const string Dragon::name 	= "dragon";
 
 class Headquarter{
 	public:
 		Headquarter()	= default;
-		Headquarter(string name, int base_life, int a, int b, int c, int d, int e, const vector <int> &order){
-			my_name		 	= name; 
-			life_enough		= true;
-			life_value		= base_life;
-			iceman_life		= a;
-			lion_life		= b;
-			wolf_life		= c;
-			ninja_life		= d;
-			dragon_life		= e;
-			create_order	= order;
-			next_create		= create_order.begin();
-			next_num		= 1;
-		}
+		Headquarter(string name_, int baseLife_, int a, int b, int c, int d, int e, const vector <int> &order):
+		name(name_), lifeEnough(true), lifeValue(baseLife_), icemanLife(a), lionLife(b),
+		wolfLife(c), ninjaLife(d), dragonLife(e), createOrder(order), 
+		nextCreate(createOrder.begin()), nextNum(1){}
 
 		bool create_warrior(myTime time){
-#ifndef NDEBUG
-			cout << life_value << endl;
+#ifdef MYDEBUG
+			cout << lifeValue << endl;
 #endif
 			bool create_success = false;
-			vector <int> :: iterator last = next_create;
-			//if (last == create_order.begin())
-			//	last = create_order.end();
-			//else
-			//	last--;
-
+			vector <int> :: iterator last = nextCreate;
+			Warrior *newWarrior;
 			while(!create_success){
-				switch(*next_create){
+				switch(*nextCreate){
 					case 1:
-						if(life_value >= iceman_life){
-							create_iceman(time);
+						if(lifeValue >= icemanLife){
+							newWarrior = create_iceman();
 							create_success = true;
 						}
 						break;
 					case 2:
-						if(life_value >= lion_life){
-							create_lion(time);
+						if(lifeValue >= lionLife){
+							newWarrior = create_lion();
 							create_success = true;
 						}
 						break;
 					case 3:
-						if(life_value >= wolf_life){
-							create_wolf(time);
+						if(lifeValue >= wolfLife){
+							newWarrior = create_wolf();
 							create_success = true;
 						}
 						break;
 					case 4:
-						if(life_value >= ninja_life){
-							create_ninja(time);
+						if(lifeValue >= ninjaLife){
+							newWarrior = create_ninja();
 							create_success = true;
 						}
 						break;
 					case 5:
-						if(life_value >= dragon_life){
-							create_dragon(time);
+						if(lifeValue >= dragonLife){
+							newWarrior = create_dragon();
 							create_success = true;
 						}
 						break;
 					default:
-						cout << "Error num of warrior type : " << *next_create <<endl;
+						cout << "Error num of warrior type : " << *nextCreate <<endl;
 				}
 				if(!create_success){
-					next_create++;
-					if(next_create == create_order.end())
-						next_create = create_order.begin();
-				}
-				if(next_create==last)
+					nextCreate++;
+					if(nextCreate == createOrder.end())
+						nextCreate = createOrder.begin();
+				} else {
+					curWarrior = newWarrior;
+					print_bornMessage(time, *newWarrior);
+					lifeValue -= (*newWarrior).get_lifeValue();
+					nextNum++;
+				}	
+				if(nextCreate==last)
 					break;
 			}
 
 			if (!create_success){
 				time.print_time();
-				cout << " " << my_name << " headquarter stops making warriors"
+				cout << " " << name << " headquarter stops making warriors"
 					 << endl;
-				life_enough = false;
+				lifeEnough = false;
 				return false;
 			}
-			next_create++;
-			if(next_create == create_order.end())
-				next_create = create_order.begin();
-			life_enough = true;
+			nextCreate++;
+			if(nextCreate == createOrder.end())
+				nextCreate = createOrder.begin();
+			lifeEnough = true;
 			return true;
 		}
 
-		bool get_life_status(){return life_enough;}
+		void print_bornMessage(myTime time, const Warrior& bornWarrior){
+			time.print_time();
+			cout << " " << name << " " << bornWarrior.get_warriorName() << " "
+				 << bornWarrior.get_warriorNum() << " born with strength "  
+				 << bornWarrior.get_lifeValue() << "," << bornWarrior.get_typeNum() 
+				 << " " << bornWarrior.get_warriorName() << " in " << name
+				 << " headquarter" << endl;
+			bornWarrior.print_exMessage();
+		}
+		bool get_life_status(){return lifeEnough;}
+		string get_name(){return name;}
 	private:
-		string my_name;
-		bool life_enough;
-		int life_value;
-		int iceman_life;
-		int lion_life;
-		int wolf_life;
-		int ninja_life;
-		int dragon_life;
-		int next_num;
-		vector <int>	create_order;
-		vector <int> ::	iterator next_create;
-		vector <Iceman> my_iceman;
-		vector <Lion> 	my_lion;
-		vector <Wolf> 	my_wolf;
-		vector <Ninja> 	my_ninja;
-		vector <Dragon> my_dragon;
+		string name;
+		bool lifeEnough;
+		int lifeValue;
+		int icemanLife;
+		int lionLife;
+		int wolfLife;
+		int ninjaLife;
+		int dragonLife;
+		vector <int>	createOrder;
+		vector <int> ::	iterator nextCreate;
+		int nextNum;
+		Warrior *curWarrior;
+		vector <Iceman*>	icemanQueue;
+		vector <Lion*> 		lionQueue;
+		vector <Wolf*> 		wolfQueue;
+		vector <Ninja*> 	ninjaQueue;
+		vector <Dragon*> 	dragonQueue;
 
-		bool create_iceman(myTime time){
-			if(life_value >= iceman_life){
-				Iceman a(this, iceman_life, next_num);
-				my_iceman.push_back(a);
-				life_value -= iceman_life;
-				next_num ++;
-				time.print_time();
-				cout << " " << my_name << " iceman " << a.get_Warrior_num() 
-					 << " born with strength " << a.get_Strength() << ","
-					 << my_iceman.size() << " iceman in " <<  my_name << " headquarter"
-					 << endl;
-				cout << "It has a " << a.get_Weapon_name() << endl;
-				return true;
-			}
+		Warrior* create_iceman(){
+			if(lifeValue >= icemanLife){
+				int typeNum = icemanQueue.size() + 1;
+				Iceman *a = new Iceman(this, icemanLife, nextNum, typeNum);
+				icemanQueue.push_back(a);
+				return a;
+			} else {
 #ifdef NDEBUG
-			cout << "life is not enough for Iceman!" << endl;
+				cout << "create iceman failed" << endl;
 #endif
-			return false;
+			}
 		}
 
-		bool create_lion(myTime time){
-			if(life_value >= lion_life){
-				int lion_loyalty = life_value - lion_life;
-				Lion a(this, lion_life, next_num, lion_loyalty);
-				my_lion.push_back(a);
-				life_value -= lion_life;
-				next_num ++;
-				time.print_time();
-				cout << " " << my_name << " lion " << a.get_Warrior_num() 
-					 << " born with strength " << a.get_Strength() << ","
-					 << my_lion.size() << " lion in " <<  my_name << " headquarter"
-					 << endl;
-				cout << "It's loyalty is " << a.get_Loyalty() << endl;
-				return true;
-			}
+		Warrior* create_lion(){
+			if(lifeValue >= lionLife){
+				int typeNum = lionQueue.size() + 1;
+				int loyalty = lifeValue - lionLife;
+				Lion *a = new Lion(this, lionLife, nextNum, loyalty, typeNum);
+				lionQueue.push_back(a);
+				return a;
+			} else {
 #ifdef NDEBUG
-			cout << "life is not enough for Lion!" << endl;
+				cout << "create lion failed" << endl;
 #endif
-			return false;
-		}
-		bool create_wolf(myTime time){
-			if(life_value >= wolf_life){
-				Wolf a(this, wolf_life, next_num);
-				my_wolf.push_back(a);
-				life_value -= wolf_life;
-				next_num ++;
-				time.print_time();
-				cout << " " << my_name << " wolf " << a.get_Warrior_num() 
-					 << " born with strength " << a.get_Strength() << ","
-					 << my_wolf.size() << " wolf in " <<  my_name << " headquarter"
-					 << endl;
-				//cout << "It has a " << a.get_Weapon_name() << endl;
-				return true;
 			}
-#ifdef NDEBUG
-			cout << "life is not enough for Wolf!" << endl;
-#endif
-			return false;
-		}
-		bool create_ninja(myTime time){
-			if(life_value >= ninja_life){
-				Ninja a(this, ninja_life, next_num);
-				my_ninja.push_back(a);
-				life_value -= ninja_life;
-				next_num ++;
-				time.print_time();
-				cout << " " << my_name << " ninja " << a.get_Warrior_num() 
-					 << " born with strength " << a.get_Strength() << ","
-					 << my_ninja.size() << " ninja in " <<  my_name << " headquarter"
-					 << endl;
-				cout << "It has a " << a.get_Weapon1_name() << " and a "
-					 << a.get_Weapon2_name() << endl;
-				return true;
-			}
-#ifdef NDEBUG
-			cout << "life is not enough for Ninja!" << endl;
-#endif
-			return false;
 		}
 
-
-		bool create_dragon(myTime time){
-			if(life_value >= dragon_life){
-				double dragon_morale = (double)(life_value - dragon_life) / dragon_life;
-				Dragon a(this, dragon_life, next_num, dragon_morale);
-				my_dragon.push_back(a);
-				life_value -= dragon_life;
-				next_num ++;
-				time.print_time();
-				cout << " " << my_name << " dragon " << a.get_Warrior_num() 
-					 << " born with strength " << a.get_Strength() << ","
-					 << my_dragon.size() << " dragon in " <<  my_name << " headquarter"
-					 << endl;
-				cout << "It has a " << a.get_Weapon_name() << ",and it's morale is ";
-				cout << setiosflags(ios::fixed) << setprecision(2) << a.get_Morale() 
-					 << endl;
-				//cout << "************" << a.get_Morale() << endl;
-				return true;
-			}
+		Warrior* create_wolf(){
+			if(lifeValue >= wolfLife){
+				int typeNum = wolfQueue.size() + 1;
+				Wolf *a = new Wolf(this, wolfLife, nextNum, typeNum);
+				wolfQueue.push_back(a);
+				return a;
+			} else {
 #ifdef NDEBUG
-			cout << "life is not enough for Dragon!" << endl;
+				cout << "create wolf failed" << endl;
 #endif
-			return false;
+			}
 		}
+
+		Warrior* create_ninja(){
+			if(lifeValue >= ninjaLife){
+				int typeNum = ninjaQueue.size() + 1;
+				Ninja *a = new Ninja(this, ninjaLife, nextNum, typeNum);
+				ninjaQueue.push_back(a);
+				return a;
+			} else {
+#ifdef NDEBUG
+				cout << "create ninja failed" << endl;
+#endif
+			}
+		}
+
+		Warrior* create_dragon(){
+			if(lifeValue >= dragonLife){
+				int typeNum = dragonQueue.size() + 1;
+				double morale = (double) (lifeValue - dragonLife) / dragonLife;
+				Dragon *a = new Dragon(this, dragonLife, nextNum, morale, typeNum);
+				dragonQueue.push_back(a);
+				return a;
+			} else {
+#ifdef NDEBUG
+				cout << "create dragon failed" << endl;
+#endif
+			}
+		}
+
 };
-
-
-
-
-
-
 
 
 int main(){
@@ -424,11 +360,11 @@ int main(){
 
 		while(1){
 			bool loop_finish = true;
-			if(red.get_life_status()){
+			if(red.get_lifeStatus()){
 				red.create_warrior(time);
 				loop_finish = false;
 			}
-			if(blue.get_life_status()){
+			if(blue.get_lifeStatus()){
 				blue.create_warrior(time);
 				loop_finish = false;
 			}
