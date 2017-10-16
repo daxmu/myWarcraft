@@ -2,6 +2,9 @@
 start: main.cpp Headquarter.h tools.h define.h
 	g++ -Wall -std=c++11 Headquarter.h define.h tools.h main.cpp -o start
 
+debug: main.cpp Headquarter.h tools.h define.h
+	g++ -Wall -std=c++11 Headquarter.h define.h tools.h main.cpp -o debug 2>makelog
+
 combine: combine.cpp
 	g++ -Wall -std=c++11 combine.cpp -o combine
 
@@ -20,5 +23,5 @@ run_diff: start answer
 	vimdiff log result
 	
 clean:
-	rm -rf start log result answer combine
+	rm -rf start log result answer combine debug
 	

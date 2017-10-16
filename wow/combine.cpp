@@ -251,7 +251,7 @@ class Headquarter{
 				 << " headquarter" << endl;
 			bornWarrior.print_exMessage();
 		}
-		bool get_life_status(){return lifeEnough;}
+		bool get_lifeStatus(){return lifeEnough;}
 		string get_name(){return name;}
 	private:
 		string name;
