@@ -45,11 +45,19 @@ class myTime{
 			}
 			return;
 		}
-		void print_time(){
+		void print_time() const {
 			cout << hour[2] << hour[1] << hour[0] << ":" << min[1] << min[0];
 			return;
 		}
+		bool gthan(int) const;
 	private:
 		int hour[3];
 		int min[2];
 };
+
+inline bool myTime::gthan(int a) const{
+	int min_all = 0;
+	min_all += hour[0]*60 + hour[1]*600 + hour[2]*6000;
+	min_all += min[0] + min[1]*10;
+	return min_all > a;
+}

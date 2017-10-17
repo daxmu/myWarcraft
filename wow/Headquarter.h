@@ -13,13 +13,13 @@ using namespace std;
 
 class Headquarter;
 
-class Weapon{
+class Weapon{ // 武器基类
 	public:
 		Weapon(int type_): wpType(type_) {}
-		virtual string get_wpMessage() const = 0;
-		virtual bool isInvalid() const = 0;
-		virtual string get_wpName() const = 0;
-		int get_wpType() const { return wpType;}
+		virtual string get_wpMessage() const = 0; //获取武器信息
+		virtual bool isInvalid() const = 0; //判断武器是否存在
+		virtual string get_wpName() const = 0; //获得武器名称
+		int get_wpType() const { return wpType;} //获得武器种类
 	protected:
 		int wpType;
 };
@@ -67,7 +67,7 @@ class Arrow: public Weapon{
 		int num;
 };
 
-class Idlewp: public Weapon{
+class Idlewp: public Weapon{ // 无效武器类,用于没有武器
 	public:
 		Idlewp(): Weapon(-1){}
 		string get_wpMessage() const override{ return "Idle";}
@@ -88,11 +88,13 @@ class Warrior{
 		int get_warriorNum() const {return warriorNum;}
 		int get_lifeValue() const {return lifeValue;}
 		int get_typeNum() const {return typeNum;}
+		int get_atk() const {return atk;}
 		virtual void print_exMessage() const = 0;
 		virtual void print_wpMessage() const = 0;
 		virtual string get_warriorName() const = 0;
-	protected:
+		virtual void march(){}
 		Headquarter *master;
+	protected:
 		int lifeValue;
 		int	warriorNum;
 		int typeNum;
@@ -119,15 +121,22 @@ class Iceman: public Warrior{
 			}
 		}
 
-		string get_warriorName() const {return name;}
+		string get_warriorName() const override {return name;}
 		string get_wpName() const {return weapon->get_wpName();}
-		void print_exMessage() const {}
-		void print_wpMessage() const {
+		void print_exMessage() const override {}
+		void print_wpMessage() const override {
 			cout << msName << " " << name << " " << warriorNum << " has ";
 			if(weapon->isInvalid())	
 				cout << "no weapon" << endl;
 			else
 				cout << weapon->get_wpMessage() << endl;
+		}
+		void march() override{
+			if(lifeValue > 9)
+				lifeValue -= 9;
+			else
+				lifeValue = 1;
+			atk += 20;
 		}
 	private:
 		Weapon* weapon;	
@@ -269,18 +278,43 @@ const string Wolf::name 	= "wolf";
 const string Ninja::name 	= "ninja";
 const string Dragon::name 	= "dragon";
 
+class City{
+	public:
+		City(int ID_, int lifeValue_):cityID(ID_), lifeValue(lifeValue_), flagName(""), red(NULL), blue(NULL), lastRed(NULL), lastBlue(NULL){}
+		City(int ID_):cityID(ID_), lifeValue(0), flagName(""), red(NULL), blue(NULL), lastRed(NULL), lastBlue(NULL){}
+
+		void warrior_fight();
+		void march_fromSide(City* ,const myTime&);
+		void march_fromSide(Headquarter*, const myTime&);
+		void march_prepare();
+
+		friend class Headquarter;
+	private:
+		int cityID;
+		int lifeValue;
+		string flagName;
+		Warrior *red;
+		Warrior *blue;
+		Warrior *lastRed;
+		Warrior *lastBlue;
+
+};
+
 class Headquarter{
 	public:
 		Headquarter()	= default;
 		Headquarter(string name_, int baseLife_, vector <int> wLife_, vector <int> wAtk_, vector <int> order):
-			name(name_), lifeEnough(true), lifeValue(baseLife_), warriorLife(wLife_), warriorAtk(wAtk_), 
-			createOrder(order), nextCreate(createOrder.begin()), nextNum(1){}
+			name(name_), lifeEnough(true), lifeValue(baseLife_), warriorLife(wLife_), warriorAtk(wAtk_), createOrder(order), nextCreate(createOrder.begin()), nextNum(1), taken(false), curWarrior(NULL), enemyWarrior(NULL){}
 
-		bool create_warrior(myTime);
 		bool get_lifeStatus(){return lifeEnough;}
 		string get_name(){return name;}
+		void print_curwpMessage(myTime time) const { if(curWarrior!=NULL){time.print_time(); cout << " "; curWarrior->print_wpMessage();}}
+		bool be_taken(const myTime&) const ;
+		bool create_warrior(myTime);
 		void print_bornMessage(myTime, const Warrior&);
-		void print_curwpMessage(myTime time) const { time.print_time(); cout << " "; curWarrior->print_wpMessage();}
+		void march_fromCity(City *, const myTime&);
+
+		friend class City;
 	private:
 		string name;
 		bool lifeEnough;
@@ -290,7 +324,9 @@ class Headquarter{
 		vector <int> createOrder;
 		vector <int> ::	iterator nextCreate;
 		int nextNum;
+		bool taken;
 		Warrior *curWarrior;
+		Warrior *enemyWarrior;
 		vector <Iceman*>	icemanQueue;
 		vector <Lion*> 		lionQueue;
 		vector <Wolf*> 		wolfQueue;
@@ -307,6 +343,7 @@ class Headquarter{
 #ifdef NDEBUG
 				cout << "create iceman failed" << endl;
 #endif
+			return NULL;
 			}
 		}
 
@@ -317,10 +354,12 @@ class Headquarter{
 				Lion *a = new Lion(this, warriorLife[1], nextNum, loyalty, typeNum, warriorAtk[1], name);
 				lionQueue.push_back(a);
 				return a;
-			} else {
+			} 
+			else {
 #ifdef NDEBUG
 				cout << "create lion failed" << endl;
 #endif
+			return NULL;
 			}
 		}
 
@@ -334,6 +373,7 @@ class Headquarter{
 #ifdef NDEBUG
 				cout << "create wolf failed" << endl;
 #endif
+			return NULL;
 			}
 		}
 
@@ -347,6 +387,7 @@ class Headquarter{
 #ifdef NDEBUG
 				cout << "create ninja failed" << endl;
 #endif
+			return NULL;
 			}
 		}
 
@@ -361,87 +402,194 @@ class Headquarter{
 #ifdef NDEBUG
 				cout << "create dragon failed" << endl;
 #endif
+			return NULL;
 			}
 		}
 
 };
 
+void City::warrior_fight(){
+	//if(red!=NULL && blue!=NULL){
+	//	if(flagName=="")
+	//		if(cityID%2==0)
+	//			//blue->
+	//}
+}
+
+void City::march_prepare(){
+	lastRed = red;
+	lastBlue = blue;
+	red = NULL;
+	blue = NULL;
+}
+void City::march_fromSide(City *side, const myTime &time){
+	if(side->cityID < this->cityID){
+		if(this->red!=NULL)
+			cout << "***************" << "city " << this->cityID 
+				 << "red warrior has not been moved" << "*************" << endl;
+		if(side->lastRed!=NULL){
+			this->red = side->lastRed;
+			side->lastRed = NULL;
+			this->red->march();
+			time.print_time();
+			cout << " " << red->master->get_name() << " " << red->get_warriorName() 
+				 << " " << red->get_warriorNum() << " marched to city " << cityID
+				 << " with " << red->get_lifeValue() << " elements and force "
+				 << red->get_atk() << endl;
+		}
+	} else if(side->cityID > this->cityID){
+		if(this->blue!=NULL)
+			cout << "***************" << "city " << this->cityID 
+				 << "blue warrior has not been moved" << "*************" << endl;
+		if(side->lastBlue!=NULL){
+			this->blue = side->lastBlue;
+			side->lastBlue = NULL;
+			this->blue->march();
+			time.print_time();
+			cout << " " << blue->master->get_name() << " " << blue->get_warriorName() 
+				 << " " << blue->get_warriorNum() << " marched to city " << cityID
+				 << " with " << blue->get_lifeValue() << " elements and force "
+				 << blue->get_atk() << endl;
+		}
+	} else
+		cout << "*********error city num for march!**************" << endl;
+}
+
+void City::march_fromSide(Headquarter* head, const myTime &time){
+	if(head->get_name() == "red"){
+		if(this->red!=NULL)
+			cout << "***************" << "city " << this->cityID 
+				 << "red warrior has not been moved" << "*************" << endl;
+		if(head->curWarrior!=NULL){
+			this->red = head->curWarrior;
+			head->curWarrior = NULL;
+			this->red->march();
+			time.print_time();
+			cout << " " << red->master->get_name() << " " << red->get_warriorName() 
+				 << " " << red->get_warriorNum() << " marched to city " << cityID
+				 << " with " << red->get_lifeValue() << " elements and force "
+				 << red->get_atk() << endl;
+		}
+	} else if(head->get_name() == "blue"){
+		if(this->blue!=NULL)
+			cout << "***************" << "city " << this->cityID 
+				 << "blue warrior has not been moved" << "*************" << endl;
+		if(head->curWarrior!=NULL){
+			this->blue = head->curWarrior;
+			head->curWarrior = NULL;
+			this->blue->march();
+			time.print_time();
+			cout << " " << blue->master->get_name() << " " << blue->get_warriorName() 
+				 << " " << blue->get_warriorNum() << " marched to city " << cityID
+				 << " with " << blue->get_lifeValue() << " elements and force "
+				 << blue->get_atk() << endl;
+		}
+	}
+}
+
+void Headquarter::march_fromCity(City *side, const myTime &time){
+	if(this->get_name() == "red"){
+		if(this->enemyWarrior!=NULL)
+			cout << "************red enemyWarrior is not NULL!!************" << endl;
+		if(side->lastBlue!=NULL){
+			this->enemyWarrior = side->lastBlue;
+			side->lastBlue = NULL;
+			this->enemyWarrior->march();
+			time.print_time();
+			cout << " " << name << " " << enemyWarrior->get_warriorName()
+				 << " " << enemyWarrior->get_warriorNum() << " reached " << name 
+				 << " headquarter with " << enemyWarrior->get_lifeValue()
+				 << " elements and force " << enemyWarrior->get_atk() << endl;
+			taken = true;
+		}
+	}
+	if(this->get_name() == "blue"){
+		if(this->enemyWarrior!=NULL)
+			cout << "************blue enemyWarrior is not NULL!!************" << endl;
+		if(side->lastRed!=NULL){
+			this->enemyWarrior = side->lastRed;
+			side->lastRed = NULL;
+			this->enemyWarrior->march();
+			time.print_time();
+			cout << " " << name << " " << enemyWarrior->get_warriorName()
+				 << " " << enemyWarrior->get_warriorNum() << " reached " << name 
+				 << " headquarter with " << enemyWarrior->get_lifeValue()
+				 << " elements and force " << enemyWarrior->get_atk() << endl;
+			taken = true;
+		}
+	}
+}
+
+inline bool Headquarter::be_taken(const myTime &time) const {
+	if(!taken)
+		return false;
+	else{
+		time.print_time();
+		cout << " " << name << " headquarter was taken" << endl;
+		return true;
+	}
+}
 bool Headquarter::create_warrior(myTime time){
 #ifdef MYDEBUG
-			cout << lifeValue << endl;
+	cout << "***create warrior" << endl;
 #endif
-			bool create_success = false;
-			vector <int> :: iterator last = nextCreate;
-			Warrior *newWarrior;
-			while(!create_success){
-				switch(*nextCreate){
-					case 1:
-						if(lifeValue >= warriorLife[0]){
-							newWarrior = create_iceman();
-							create_success = true;
-						}
-						break;
-					case 2:
-						if(lifeValue >= warriorLife[1]){
-							newWarrior = create_lion();
-							create_success = true;
-						}
-						break;
-					case 3:
-						if(lifeValue >= warriorLife[2]){
-							newWarrior = create_wolf();
-							create_success = true;
-						}
-						break;
-					case 4:
-						if(lifeValue >= warriorLife[3]){
-							newWarrior = create_ninja();
-							create_success = true;
-						}
-						break;
-					case 5:
-						if(lifeValue >= warriorLife[4]){
-							newWarrior = create_dragon();
-							create_success = true;
-						}
-						break;
-					default:
-						cout << "Error num of warrior type : " << *nextCreate <<endl;
-				}
-				if(!create_success){
-					nextCreate++;
-					if(nextCreate == createOrder.end())
-						nextCreate = createOrder.begin();
-				} else {
-					curWarrior = newWarrior;
-					print_bornMessage(time, *newWarrior);
-					lifeValue -= (*newWarrior).get_lifeValue();
-					nextNum++;
-				}	
-				if(nextCreate==last)
-					break;
+	bool create_success = false;
+	Warrior *newWarrior;
+	switch(*nextCreate){
+		case 1:
+			if(lifeValue >= warriorLife[0]){
+				newWarrior = create_iceman();
+				create_success = true;
 			}
-
-			if (!create_success){
-				time.print_time();
-				cout << " " << name << " headquarter stops making warriors"
-					 << endl;
-				lifeEnough = false;
-				return false;
+			break;
+		case 2:
+			if(lifeValue >= warriorLife[1]){
+				newWarrior = create_lion();
+				create_success = true;
 			}
-			nextCreate++;
-			if(nextCreate == createOrder.end())
-				nextCreate = createOrder.begin();
-			lifeEnough = true;
-			return true;
-		}
+			break;
+		case 3:
+			if(lifeValue >= warriorLife[2]){
+				newWarrior = create_wolf();
+				create_success = true;
+			}
+			break;
+		case 4:
+			if(lifeValue >= warriorLife[3]){
+				newWarrior = create_ninja();
+				create_success = true;
+			}
+			break;
+		case 5:
+			if(lifeValue >= warriorLife[4]){
+				newWarrior = create_dragon();
+				create_success = true;
+			}
+			break;
+		default:
+			cout << "Error num of warrior type : " << *nextCreate <<endl;
+	}
+	if(create_success){
+		curWarrior = newWarrior;
+		print_bornMessage(time, *newWarrior);
+		lifeValue -= (*newWarrior).get_lifeValue();
+		nextNum++;
+		nextCreate++;
+		if(nextCreate == createOrder.end())
+			nextCreate = createOrder.begin();
+	}
+	lifeEnough = true;
+	return true;
+}
 
 void Headquarter::print_bornMessage(myTime time, const Warrior& bornWarrior){
 			time.print_time();
+			//cout << " " << name << " " << bornWarrior.get_warriorName() << " "
+			//	 << bornWarrior.get_warriorNum() << " born with strength "  
+			//	 << bornWarrior.get_lifeValue() << "," << bornWarrior.get_typeNum() 
+			//	 << " " << bornWarrior.get_warriorName() << " in " << name
+			//	 << " headquarter" << endl;
 			cout << " " << name << " " << bornWarrior.get_warriorName() << " "
-				 << bornWarrior.get_warriorNum() << " born with strength "  
-				 << bornWarrior.get_lifeValue() << "," << bornWarrior.get_typeNum() 
-				 << " " << bornWarrior.get_warriorName() << " in " << name
-				 << " headquarter" << endl;
+				 << bornWarrior.get_warriorNum() << " born" << endl;
 			bornWarrior.print_exMessage();
 }

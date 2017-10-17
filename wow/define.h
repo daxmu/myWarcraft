@@ -1,1 +1,2 @@
-#define NDEBUG
+#define _NDEBUG
+#define _MYDEBUG
