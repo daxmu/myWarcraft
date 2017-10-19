@@ -12,6 +12,11 @@
 using namespace std;
 
 class Headquarter;
+class Iceman;
+class Lion;
+class Wolf;
+class Ninja;
+class Dragon;
 
 class Weapon{ // 武器基类
 	public:
@@ -20,6 +25,7 @@ class Weapon{ // 武器基类
 		virtual bool isInvalid() const = 0; //判断武器是否存在
 		virtual string get_wpName() const = 0; //获得武器名称
 		int get_wpType() const { return wpType;} //获得武器种类
+		virtual ~Weapon() = default;
 	protected:
 		int wpType;
 };
@@ -35,6 +41,8 @@ class Sword: public Weapon{
 		}
 		bool isInvalid() const override { return (atk==0);}
 		string get_wpName() const override { return name;}
+		int get_atk() const {return atk;}
+		bool consume() {atk=atk*4/5; return atk==0;}
 	private:
 		const static string name;
 		int atk;
@@ -62,10 +70,13 @@ class Arrow: public Weapon{
 		}
 		bool isInvalid() const override { return (num==0);}
 		string get_wpName() const override { return name;}
+		bool consume(){num-=1; return num==0;}
+		static int atk;
 	private:
 		const static string name;
 		int num;
 };
+int Arrow::atk;
 
 class Idlewp: public Weapon{ // 无效武器类,用于没有武器
 	public:
@@ -82,23 +93,39 @@ const string Arrow::name = "arrow";
 
 class Warrior{
 	public:
-		Warrior(Headquarter* master_, int lifeValue_, int warriorNum_, int typeNum_, int atk_, string msName_):
-			master(master_), lifeValue(lifeValue_), warriorNum(warriorNum_), typeNum(typeNum_), atk(atk_), msName(msName_){}
+		Warrior(Headquarter* master_, int lifeValue_, int warriorNum_, int typeNum_, int atk_, string msName_, int cityID_=0):
+			master(master_), lifeValue(lifeValue_), warriorNum(warriorNum_), typeNum(typeNum_), atk(atk_), cityID(cityID_), dieArrow(0), dieFight(0), dieBomb(0), msName(msName_){}
 
 		int get_warriorNum() const {return warriorNum;}
 		int get_lifeValue() const {return lifeValue;}
 		int get_typeNum() const {return typeNum;}
 		int get_atk() const {return atk;}
+		void life_dec(int a){lifeValue-=a;}
+		string get_msName() const {return msName;}
 		virtual void print_exMessage() const = 0;
 		virtual void print_wpMessage() const = 0;
 		virtual string get_warriorName() const = 0;
-		virtual void march(){}
+		virtual void march(int cityID_){cityID = cityID_;}
+		virtual void shoot(Warrior*, const myTime&) = 0;
+		virtual void attack(Warrior*, const myTime&) = 0;
+		virtual void counter(Warrior*, const myTime&) = 0;
+		virtual ~Warrior() = default;
 		Headquarter *master;
+
+		friend class Iceman;
+		friend class Lion;
+		friend class Wolf;
+		friend class Ninja;
+		friend class Dragon;
 	protected:
 		int lifeValue;
 		int	warriorNum;
 		int typeNum;
 		int atk;
+		int cityID;
+		bool dieArrow;
+		bool dieFight;
+		bool dieBomb;
 		string msName;
 };
 
@@ -108,7 +135,10 @@ class Iceman: public Warrior{
 			Warrior(master_, lifeValue_, warriorNum_, typeNum_, atk_, msName_){
 			switch(warriorNum_%3){
 				case 0:
-					weapon = new Sword(atk_/5);
+					if(atk_/5==0)
+						weapon = NULL;
+					else
+						weapon = new Sword(atk_/5);
 					break;
 				case 1:
 					weapon = new Bomb;
@@ -126,18 +156,22 @@ class Iceman: public Warrior{
 		void print_exMessage() const override {}
 		void print_wpMessage() const override {
 			cout << msName << " " << name << " " << warriorNum << " has ";
-			if(weapon->isInvalid())	
+			if(weapon==NULL)	
 				cout << "no weapon" << endl;
 			else
 				cout << weapon->get_wpMessage() << endl;
 		}
-		void march() override{
+		void march(int cityID_) override{
 			if(lifeValue > 9)
 				lifeValue -= 9;
 			else
 				lifeValue = 1;
 			atk += 20;
+			cityID = cityID_;
 		}
+		void shoot(Warrior*, const myTime&) override ;
+		void attack(Warrior*, const myTime&) override;
+		void counter(Warrior*, const myTime&) override;
 	private:
 		Weapon* weapon;	
 		const static string name;
@@ -149,8 +183,8 @@ class Lion: public Warrior{
 			Warrior(master_, lifeValue_, warriorNum_, typeNum_, atk_, msName_), loyalty(loyalty_){}
 
 	 	int get_loyalty() const {return loyalty;}
-
 		string get_warriorName() const {return name;}
+
 		void print_exMessage() const {
 			cout << "It's loyalty is " << loyalty << endl;
 		}
@@ -158,16 +192,29 @@ class Lion: public Warrior{
 			cout << msName << " " << name << " " << warriorNum << " has "
 				 << "no weapon" << endl;
 		}
+		bool escape(const myTime &time) const {
+			if(loyalty <= 0){
+				time.print_time();
+				cout << " " << msName << " " << name << " " << warriorNum << " ran away" << endl;
+				return true;
+			}
+			return false;
+		}
+		void shoot(Warrior*, const myTime&) override ;
+		void attack(Warrior*, const myTime&) override;
+		void counter(Warrior*, const myTime&) override;
+		static int k;
 	private:
 		int loyalty;
 		const static string name;
 };
+int Lion::k;
 
 class Wolf: public Warrior{
 	public:
 		Wolf(Headquarter* master_, int lifeValue_, int warriorNum_, int typeNum_, int atk_, string msName_):
 			Warrior(master_, lifeValue_, warriorNum_, typeNum_, atk_, msName_){
-				weapon = new Idlewp();
+				weapon = NULL;
 			}
 
 		string get_warriorName() const {return name;}
@@ -175,11 +222,14 @@ class Wolf: public Warrior{
 		void print_exMessage() const {}
 		void print_wpMessage() const {
 			cout << msName << " " << name << " " << warriorNum << " has ";
-			if(weapon->isInvalid())	
+			if(weapon==NULL)	
 				cout << "no weapon" << endl;
 			else
 				cout << weapon->get_wpMessage() << endl;
 		}
+		void shoot(Warrior*, const myTime&) override ;
+		void attack(Warrior*, const myTime&) override;
+		void counter(Warrior*, const myTime&) override;
 	private:
 		const static string name;
 		Weapon *weapon;
@@ -191,7 +241,10 @@ class Ninja: public Warrior{
 			Warrior(master_, lifeValue_, warriorNum_, typeNum_, atk_, msName_){
 			switch(warriorNum_%3){
 				case 0:
-					weapon1 = new Sword(atk_/5);
+					if(atk_/5==0)
+						weapon1 = NULL;
+					else
+						weapon1 = new Sword(atk_/5);
 					weapon2 = new Bomb();
 					break;
 				case 1:
@@ -200,7 +253,10 @@ class Ninja: public Warrior{
 					break;
 				case 2:
 					weapon1 = new Arrow(3);
-					weapon2 = new Sword(atk_/5);
+					if(atk_/5==0)
+						weapon2 = NULL;
+					else
+						weapon2 = new Sword(atk_/5);
 					break;
 				default:
 					cout << "*********THE WEAPON TYPE IS ERROR**************"<<endl;
@@ -214,19 +270,22 @@ class Ninja: public Warrior{
 		void print_exMessage() const {}
 		void print_wpMessage() const {
 			cout << msName << " " << name << " " << warriorNum << " has ";
-			if(weapon1->isInvalid())	
-				if(weapon2->isInvalid())
+			if(weapon1==NULL)	
+				if(weapon2==NULL)
 					cout << "no weapon" << endl;
 				else
 					cout << weapon2->get_wpMessage() << endl;
 			else{
 				cout << weapon1->get_wpMessage();
-				if(weapon2->isInvalid())
+				if(weapon2==NULL)
 					cout << endl;
 				else
 					cout << "," << weapon2->get_wpMessage() << endl;
 			}
 		}
+		void shoot(Warrior*, const myTime&) override ;
+		void attack(Warrior*, const myTime&) override;
+		void counter(Warrior*, const myTime&) override;
 	private:
 		Weapon *weapon1;
 		Weapon *weapon2;
@@ -239,7 +298,10 @@ class Dragon: public Warrior{
 			Warrior(master_, lifeValue_, warriorNum_, typeNum_, atk_, msName_), morale(morale_){
 			switch(warriorNum_%3){
 				case 0:
-					weapon = new Sword(atk_/5);
+					if(atk_/5==0)
+						weapon = NULL;
+					else
+						weapon = new Sword(atk_/5);
 					break;
 				case 1:
 					weapon = new Bomb;
@@ -259,11 +321,14 @@ class Dragon: public Warrior{
 		}
 		void print_wpMessage() const {
 			cout << msName << " " << name << " " << warriorNum << " has ";
-			if(weapon->isInvalid())	
+			if(weapon==NULL)	
 				cout << "no weapon" << endl;
 			else
 				cout << weapon->get_wpMessage() << endl;
 		}
+		void shoot(Warrior*, const myTime&) override ;
+		void attack(Warrior*, const myTime&) override;
+		void counter(Warrior*, const myTime&) override;
 		
 		string get_warriorName() const {return name;}
 	private:
@@ -278,21 +343,319 @@ const string Wolf::name 	= "wolf";
 const string Ninja::name 	= "ninja";
 const string Dragon::name 	= "dragon";
 
+void Iceman::shoot(Warrior* enemy, const myTime& time) {
+	if(weapon!=NULL)
+		if(weapon->get_wpType() == 2){
+			Arrow* tmp = dynamic_cast<Arrow*>(weapon);
+			enemy->lifeValue -= tmp->atk;
+			if(tmp->consume()){
+				delete tmp;
+				weapon = NULL;
+			}
+			time.print_time();
+			cout << " " << msName << " " << name << " " << warriorNum << " shot"; 			
+			if(enemy->lifeValue <= 0){
+				cout << " and killed " << enemy->msName << " " << enemy->get_warriorName() << " " << enemy->warriorNum;
+				enemy->dieArrow = true;
+			}
+			cout << endl;
+		}
+}
+
+//void Iceman::killed(const myTime &time){
+//	if(lifeValue <= 0)
+//		cout << " " << msName << " " << name << " " << warriorNum << " was killed in "
+//			 << "city " << cityID << endl;
+//	
+//}
+
+void Lion::shoot(Warrior* enemy, const myTime& time) {
+}
+
+void Wolf::shoot(Warrior* enemy, const myTime& time) {
+	if(weapon!=NULL)
+		if(weapon->get_wpType() == 2){
+			Arrow* tmp = dynamic_cast<Arrow*>(weapon);
+			enemy->lifeValue -= tmp->atk;
+			if(tmp->consume()){
+				delete tmp;
+				weapon = NULL;
+			}
+			time.print_time();
+			cout << " " << msName << " " << name << " " << warriorNum << " shot"; 			
+			if(enemy->lifeValue <= 0){
+				cout << " and killed " << enemy->msName << " " << enemy->get_warriorName() << " " << warriorNum;
+				enemy->dieArrow = true;
+			}
+			cout << endl;
+		}
+}
+void Ninja::shoot(Warrior* enemy, const myTime& time) {
+	if(weapon1!=NULL)
+		if(weapon1->get_wpType() == 2){
+			Arrow* tmp = dynamic_cast<Arrow*>(weapon1);
+			enemy->lifeValue -= tmp->atk;
+			if(tmp->consume()){
+				delete tmp;
+				weapon1 = NULL;
+			}
+			time.print_time();
+			cout << " " << msName << " " << name << " " << warriorNum << " shot"; 			
+			if(enemy->lifeValue <= 0){
+				cout << " and killed " << enemy->msName << " " << enemy->get_warriorName() << " " << warriorNum;
+				enemy->dieArrow = true;
+			}
+			cout << endl;
+		}
+	if(weapon2!=NULL)
+		if(weapon2->get_wpType() == 2){
+			Arrow* tmp = dynamic_cast<Arrow*>(weapon2);
+			enemy->lifeValue -= tmp->atk;
+			if(tmp->consume()){
+				delete tmp;
+				weapon2 = NULL;
+			}
+			time.print_time();
+			cout << " " << msName << " " << name << " " << warriorNum << " shot"; 			
+			if(enemy->lifeValue <= 0){
+				cout << " and killed " << enemy->msName << " " << enemy->get_warriorName() << " " << warriorNum;
+				enemy->dieArrow = true;
+			}
+			cout << endl;
+		}
+}
+void Dragon::shoot(Warrior* enemy, const myTime& time) {
+	if(weapon!=NULL)
+		if(weapon->get_wpType() == 2){
+			Arrow* tmp = dynamic_cast<Arrow*>(weapon);
+			enemy->lifeValue -= tmp->atk;
+			if(tmp->consume()){
+				delete tmp;
+				weapon = NULL;
+			}
+			time.print_time();
+			cout << " " << msName << " " << name << " " << warriorNum << " shot"; 			
+			if(enemy->lifeValue <= 0){
+				cout << " and killed " << enemy->msName << " " << enemy->get_warriorName() << " " << warriorNum;
+				enemy->dieArrow = true;
+			}
+			cout << endl;
+		}
+}
+
+void Iceman::attack(Warrior* enemy, const myTime& time) {
+	int damage = atk;
+	if(weapon!=NULL)
+		if(weapon->get_wpType() == 0){
+			Sword *tmp = dynamic_cast<Sword*>(weapon);
+			damage += tmp->get_atk();
+			if(tmp->consume()){
+				delete tmp;
+				weapon = NULL;
+			}
+		}
+	enemy->lifeValue -= damage;
+	if(enemy->lifeValue <= 0 )
+		enemy->dieFight = true;
+
+	time.print_time();
+	cout << " " << msName << " " << name << " " << warriorNum << " attacked "
+		 << enemy->get_msName() << " " << enemy->get_warriorName() << " " 
+		 << enemy->warriorNum << " in city " << cityID << " with " << lifeValue
+		 << " elements and force " << atk << endl;
+}
+
+void Lion::attack(Warrior* enemy, const myTime& time) {
+	int damage = atk;
+	enemy->lifeValue -= damage;
+	if(enemy->lifeValue <= 0 )
+		enemy->dieFight = true;
+
+	time.print_time();
+	cout << " " << msName << " " << name << " " << warriorNum << " attacked "
+		 << enemy->get_msName() << " " << enemy->get_warriorName() << " " 
+		 << enemy->warriorNum << " in city " << cityID << " with " << lifeValue
+		 << " elements and force " << atk << endl;
+}
+
+void Wolf::attack(Warrior* enemy, const myTime& time) {
+	int damage = atk;
+	if(weapon!=NULL)
+		if(weapon->get_wpType() == 0){
+			Sword *tmp = dynamic_cast<Sword*>(weapon);
+			damage += tmp->get_atk();
+			if(tmp->consume()){
+				delete tmp;
+				weapon = NULL;
+			}
+		}
+	enemy->lifeValue -= damage;
+	if(enemy->lifeValue <= 0 )
+		enemy->dieFight = true;
+
+	time.print_time();
+	cout << " " << msName << " " << name << " " << warriorNum << " attacked "
+		 << enemy->get_msName() << " " << enemy->get_warriorName() << " " 
+		 << enemy->warriorNum << " in city " << cityID << " with " << lifeValue
+		 << " elements and force " << atk << endl;
+}
+
+void Ninja::attack(Warrior* enemy, const myTime& time) {
+	int damage = atk;
+	if(weapon1!=NULL)
+		if(weapon1->get_wpType() == 0){
+			Sword *tmp = dynamic_cast<Sword*>(weapon1);
+			damage += tmp->get_atk();
+			if(tmp->consume()){
+				delete tmp;
+				weapon1 = NULL;
+			}
+		}
+	if(weapon2!=NULL)
+		if(weapon2->get_wpType() == 0){
+			Sword *tmp = dynamic_cast<Sword*>(weapon2);
+			damage += tmp->get_atk();
+			if(tmp->consume()){
+				delete tmp;
+				weapon2 = NULL;
+			}
+		}
+	enemy->lifeValue -= damage;
+	if(enemy->lifeValue <= 0 )
+		enemy->dieFight = true;
+
+	time.print_time();
+	cout << " " << msName << " " << name << " " << warriorNum << " attacked "
+		 << enemy->get_msName() << " " << enemy->get_warriorName() << " " 
+		 << enemy->warriorNum << " in city " << cityID << " with " << lifeValue
+		 << " elements and force " << atk << endl;
+}
+
+void Dragon::attack(Warrior* enemy, const myTime& time) {
+	int damage = atk;
+	if(weapon!=NULL)
+		if(weapon->get_wpType() == 0){
+			Sword *tmp = dynamic_cast<Sword*>(weapon);
+			damage += tmp->get_atk();
+			if(tmp->consume()){
+				delete tmp;
+				weapon = NULL;
+			}
+		}
+	enemy->lifeValue -= damage;
+	if(enemy->lifeValue <= 0 )
+		enemy->dieFight = true;
+
+	time.print_time();
+	cout << " " << msName << " " << name << " " << warriorNum << " attacked "
+		 << enemy->get_msName() << " " << enemy->get_warriorName() << " " 
+		 << enemy->warriorNum << " in city " << cityID << " with " << lifeValue
+		 << " elements and force " << atk << endl;
+}
+
+void Iceman::counter(Warrior* enemy, const myTime &time){
+	if(lifeValue <= 0) 
+		return;
+	int damage = atk/2;
+	if(weapon!=NULL)
+		if(weapon->get_wpType() == 0){
+			Sword *tmp = dynamic_cast<Sword*>(weapon);
+			damage += tmp->get_atk();
+			if(tmp->consume()){
+				delete tmp;
+				weapon = NULL;
+			}
+		}
+	enemy->lifeValue -= damage;
+	if(enemy->lifeValue <= 0 )
+		enemy->dieFight = true;
+
+	time.print_time();
+	cout << " " << msName << " " << name << " " << warriorNum <<" fought back against "
+		 << enemy->get_msName() << " " << enemy->get_warriorName() << " " 
+		 << enemy->warriorNum << " in city " << cityID << endl;
+}
+
+void Lion::counter(Warrior* enemy, const myTime &time){
+	if(lifeValue <= 0) 
+		return;
+	int damage = atk/2;
+	enemy->lifeValue -= damage;
+	if(enemy->lifeValue <= 0 )
+		enemy->dieFight = true;
+
+	time.print_time();
+	cout << " " << msName << " " << name << " " << warriorNum <<" fought back against "
+		 << enemy->get_msName() << " " << enemy->get_warriorName() << " " 
+		 << enemy->warriorNum << " in city " << cityID << endl;
+}
+
+void Wolf::counter(Warrior* enemy, const myTime &time){
+	if(lifeValue <= 0) 
+		return;
+	int damage = atk/2;
+	if(weapon!=NULL)
+		if(weapon->get_wpType() == 0){
+			Sword *tmp = dynamic_cast<Sword*>(weapon);
+			damage += tmp->get_atk();
+			if(tmp->consume()){
+				delete tmp;
+				weapon = NULL;
+			}
+		}
+	enemy->lifeValue -= damage;
+	if(enemy->lifeValue <= 0 )
+		enemy->dieFight = true;
+
+	time.print_time();
+	cout << " " << msName << " " << name << " " << warriorNum <<" fought back against "
+		 << enemy->get_msName() << " " << enemy->get_warriorName() << " " 
+		 << enemy->warriorNum << " in city " << cityID << endl;
+}
+
+void Ninja::counter(Warrior* enemy, const myTime &time){}
+
+void Dragon::counter(Warrior* enemy, const myTime &time){
+	if(lifeValue <= 0) 
+		return;
+	int damage = atk/2;
+	if(weapon!=NULL)
+		if(weapon->get_wpType() == 0){
+			Sword *tmp = dynamic_cast<Sword*>(weapon);
+			damage += tmp->get_atk();
+			if(tmp->consume()){
+				delete tmp;
+				weapon = NULL;
+			}
+		}
+	enemy->lifeValue -= damage;
+	if(enemy->lifeValue <= 0 )
+		enemy->dieFight = true;
+
+	time.print_time();
+	cout << " " << msName << " " << name << " " << warriorNum <<" fought back against "
+		 << enemy->get_msName() << " " << enemy->get_warriorName() << " " 
+		 << enemy->warriorNum << " in city " << cityID << endl;
+}
+
 class City{
 	public:
-		City(int ID_, int lifeValue_):cityID(ID_), lifeValue(lifeValue_), flagName(""), red(NULL), blue(NULL), lastRed(NULL), lastBlue(NULL){}
-		City(int ID_):cityID(ID_), lifeValue(0), flagName(""), red(NULL), blue(NULL), lastRed(NULL), lastBlue(NULL){}
+		City(int ID_, int lifeValue_):cityID(ID_), lifeValue(lifeValue_), flagID(0), red(NULL), blue(NULL), lastRed(NULL), lastBlue(NULL){flagCount[1]=0;flagCount[2]=0;}
+		City(int ID_):cityID(ID_), lifeValue(0), flagID(0), red(NULL), blue(NULL), lastRed(NULL), lastBlue(NULL){flagCount[1]=0;flagCount[2]=0;}
 
-		void warrior_fight();
+		void warrior_fight(myTime &);
 		void march_fromSide(City* ,const myTime&);
 		void march_fromSide(Headquarter*, const myTime&);
 		void march_prepare();
+		void lion_escape(const myTime&);
+		void shoot_toNext(City*, const myTime&);
 
 		friend class Headquarter;
 	private:
 		int cityID;
 		int lifeValue;
-		string flagName;
+		int flagCount[3];
+		int flagID;
 		Warrior *red;
 		Warrior *blue;
 		Warrior *lastRed;
@@ -313,6 +676,7 @@ class Headquarter{
 		bool create_warrior(myTime);
 		void print_bornMessage(myTime, const Warrior&);
 		void march_fromCity(City *, const myTime&);
+		void lion_escape(const myTime&);
 
 		friend class City;
 	private:
@@ -408,12 +772,46 @@ class Headquarter{
 
 };
 
-void City::warrior_fight(){
-	//if(red!=NULL && blue!=NULL){
-	//	if(flagName=="")
-	//		if(cityID%2==0)
-	//			//blue->
-	//}
+void City::warrior_fight(myTime &time){
+	if(red!=NULL && blue!=NULL){
+		if(red->get_lifeValue() > 0 && blue->get_lifeValue() > 0){
+			if(flagID == 0){
+				if(cityID%2 == 1){
+					red->attack(blue, time);
+					blue->counter(red, time);
+				}else {
+					blue->attack(red, time);
+					red->counter(blue, time);
+				}
+			}else if(flagID == 1){
+				red->attack(blue, time);
+				blue->counter(red, time);
+			}else if(flagID == 2){
+				blue->attack(red, time);
+				red->counter(blue, time);
+			}else {
+				cout << "********error flagID********" << endl;
+			}
+		}
+	}
+}
+
+void City::lion_escape(const myTime& time){
+	Lion *tmp;
+	tmp = dynamic_cast<Lion*>(red);
+	if(tmp != NULL)
+		if(tmp->escape(time)){
+			delete tmp;
+			red = NULL;
+		}
+
+	tmp = dynamic_cast<Lion*>(blue);
+	if(tmp != NULL)
+		if(tmp->escape(time)){
+			delete tmp;
+			red = NULL;
+		}
+	
 }
 
 void City::march_prepare(){
@@ -430,7 +828,7 @@ void City::march_fromSide(City *side, const myTime &time){
 		if(side->lastRed!=NULL){
 			this->red = side->lastRed;
 			side->lastRed = NULL;
-			this->red->march();
+			this->red->march(cityID);
 			time.print_time();
 			cout << " " << red->master->get_name() << " " << red->get_warriorName() 
 				 << " " << red->get_warriorNum() << " marched to city " << cityID
@@ -444,7 +842,7 @@ void City::march_fromSide(City *side, const myTime &time){
 		if(side->lastBlue!=NULL){
 			this->blue = side->lastBlue;
 			side->lastBlue = NULL;
-			this->blue->march();
+			this->blue->march(cityID);
 			time.print_time();
 			cout << " " << blue->master->get_name() << " " << blue->get_warriorName() 
 				 << " " << blue->get_warriorNum() << " marched to city " << cityID
@@ -463,7 +861,7 @@ void City::march_fromSide(Headquarter* head, const myTime &time){
 		if(head->curWarrior!=NULL){
 			this->red = head->curWarrior;
 			head->curWarrior = NULL;
-			this->red->march();
+			this->red->march(cityID);
 			time.print_time();
 			cout << " " << red->master->get_name() << " " << red->get_warriorName() 
 				 << " " << red->get_warriorNum() << " marched to city " << cityID
@@ -477,7 +875,7 @@ void City::march_fromSide(Headquarter* head, const myTime &time){
 		if(head->curWarrior!=NULL){
 			this->blue = head->curWarrior;
 			head->curWarrior = NULL;
-			this->blue->march();
+			this->blue->march(cityID);
 			time.print_time();
 			cout << " " << blue->master->get_name() << " " << blue->get_warriorName() 
 				 << " " << blue->get_warriorNum() << " marched to city " << cityID
@@ -487,6 +885,30 @@ void City::march_fromSide(Headquarter* head, const myTime &time){
 	}
 }
 
+void City::shoot_toNext(City* next, const myTime &time){
+	if(next == NULL)
+		cout << "*******the next* is invalid!!********" << endl;
+	if(next->cityID > this->cityID){	
+		if(red!=NULL && next->blue!=NULL)
+			red->shoot(next->blue, time);
+	}else if(next->cityID < this->cityID){
+		if(blue!=NULL && next->red!=NULL)
+			blue->shoot(next->red, time);
+	}else
+		cout << "******error city input(same) for shoot***********" << endl;
+		
+}
+
+void Headquarter::lion_escape(const myTime &time){
+	Lion *tmp;
+	tmp = dynamic_cast<Lion*>(curWarrior);
+	if(tmp != NULL)
+		if(tmp->escape(time)){
+			delete tmp;
+			curWarrior = NULL;
+		}
+}
+
 void Headquarter::march_fromCity(City *side, const myTime &time){
 	if(this->get_name() == "red"){
 		if(this->enemyWarrior!=NULL)
@@ -494,7 +916,7 @@ void Headquarter::march_fromCity(City *side, const myTime &time){
 		if(side->lastBlue!=NULL){
 			this->enemyWarrior = side->lastBlue;
 			side->lastBlue = NULL;
-			this->enemyWarrior->march();
+			this->enemyWarrior->march(0);
 			time.print_time();
 			cout << " " << name << " " << enemyWarrior->get_warriorName()
 				 << " " << enemyWarrior->get_warriorNum() << " reached " << name 
@@ -509,7 +931,7 @@ void Headquarter::march_fromCity(City *side, const myTime &time){
 		if(side->lastRed!=NULL){
 			this->enemyWarrior = side->lastRed;
 			side->lastRed = NULL;
-			this->enemyWarrior->march();
+			this->enemyWarrior->march(0);
 			time.print_time();
 			cout << " " << name << " " << enemyWarrior->get_warriorName()
 				 << " " << enemyWarrior->get_warriorNum() << " reached " << name 

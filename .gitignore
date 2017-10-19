@@ -267,3 +267,4 @@ in
 gitdiff
 gitlog
 *.swp
+.vscode
