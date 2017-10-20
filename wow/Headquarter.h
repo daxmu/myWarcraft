@@ -94,12 +94,13 @@ const string Arrow::name = "arrow";
 class Warrior{
 	public:
 		Warrior(Headquarter* master_, int lifeValue_, int warriorNum_, int typeNum_, int atk_, string msName_, int cityID_=0):
-			master(master_), lifeValue(lifeValue_), warriorNum(warriorNum_), typeNum(typeNum_), atk(atk_), cityID(cityID_), dieArrow(0), dieFight(0), dieBomb(0), msName(msName_){}
+			master(master_), lifeValue(lifeValue_), warriorNum(warriorNum_), typeNum(typeNum_), atk(atk_), cityID(cityID_), dieArrow(0), dieFight(0), dieBomb(0), wonFlag(0), msName(msName_){}
 
 		int get_warriorNum() const {return warriorNum;}
 		int get_lifeValue() const {return lifeValue;}
 		int get_typeNum() const {return typeNum;}
 		int get_atk() const {return atk;}
+		bool get_wonFlag() const {return wonFlag;}
 		void life_dec(int a){lifeValue-=a;}
 		string get_msName() const {return msName;}
 		virtual void print_exMessage() const = 0;
@@ -109,6 +110,10 @@ class Warrior{
 		virtual void shoot(Warrior*, const myTime&) = 0;
 		virtual void attack(Warrior*, const myTime&) = 0;
 		virtual void counter(Warrior*, const myTime&) = 0;
+		virtual void killed(const myTime&) = 0;
+		virtual void win(Warrior*,int,const myTime&) = 0;
+		virtual void deuce(Warrior*,const myTime&) = 0;
+		virtual Weapon* seizedWp() = 0;
 		virtual ~Warrior() = default;
 		Headquarter *master;
 
@@ -126,6 +131,7 @@ class Warrior{
 		bool dieArrow;
 		bool dieFight;
 		bool dieBomb;
+		bool wonFlag;
 		string msName;
 };
 
@@ -172,6 +178,10 @@ class Iceman: public Warrior{
 		void shoot(Warrior*, const myTime&) override ;
 		void attack(Warrior*, const myTime&) override;
 		void counter(Warrior*, const myTime&) override;
+		void killed(const myTime&) override;
+		void win(Warrior*,int,const myTime&) override;
+		void deuce(Warrior*,const myTime&) override;
+		Weapon *seizedWp() override {Weapon* tmp = weapon; weapon = NULL; return tmp;}
 	private:
 		Weapon* weapon;	
 		const static string name;
@@ -203,6 +213,10 @@ class Lion: public Warrior{
 		void shoot(Warrior*, const myTime&) override ;
 		void attack(Warrior*, const myTime&) override;
 		void counter(Warrior*, const myTime&) override;
+		void killed(const myTime&) override;
+		void win(Warrior*,int,const myTime&) override;
+		void deuce(Warrior*,const myTime&) override;
+		Weapon *seizedWp() override {return NULL;}
 		static int k;
 	private:
 		int loyalty;
@@ -230,6 +244,10 @@ class Wolf: public Warrior{
 		void shoot(Warrior*, const myTime&) override ;
 		void attack(Warrior*, const myTime&) override;
 		void counter(Warrior*, const myTime&) override;
+		void killed(const myTime&) override;
+		void win(Warrior*,int,const myTime&) override;
+		void deuce(Warrior*,const myTime&) override;
+		Weapon *seizedWp() override {Weapon* tmp = weapon; weapon = NULL; return tmp;}
 	private:
 		const static string name;
 		Weapon *weapon;
@@ -283,9 +301,25 @@ class Ninja: public Warrior{
 					cout << "," << weapon2->get_wpMessage() << endl;
 			}
 		}
+		Weapon *seizedWp() override {
+			Weapon* tmp;
+			if(weapon1 != NULL){
+				tmp = weapon1;
+				weapon1 = NULL;
+				return tmp;
+			}else if(weapon2 != NULL){
+				tmp = weapon1;
+				weapon1 = NULL;
+				return tmp;
+			}
+			return NULL;
+		}
 		void shoot(Warrior*, const myTime&) override ;
 		void attack(Warrior*, const myTime&) override;
 		void counter(Warrior*, const myTime&) override;
+		void killed(const myTime&) override;
+		void win(Warrior*,int,const myTime&) override;
+		void deuce(Warrior*,const myTime&) override;
 	private:
 		Weapon *weapon1;
 		Weapon *weapon2;
@@ -326,11 +360,15 @@ class Dragon: public Warrior{
 			else
 				cout << weapon->get_wpMessage() << endl;
 		}
+		string get_warriorName() const {return name;}
+
 		void shoot(Warrior*, const myTime&) override ;
 		void attack(Warrior*, const myTime&) override;
 		void counter(Warrior*, const myTime&) override;
-		
-		string get_warriorName() const {return name;}
+		void killed(const myTime&) override;
+		void win(Warrior*,int,const myTime&) override;
+		void deuce(Warrior*,const myTime&) override;
+		Weapon *seizedWp() override {Weapon* tmp = weapon; weapon = NULL; return tmp;}
 	private:
 		Weapon *weapon;	
 		double morale;
@@ -342,6 +380,147 @@ const string Lion::name 	= "lion";
 const string Wolf::name 	= "wolf";
 const string Ninja::name 	= "ninja";
 const string Dragon::name 	= "dragon";
+
+
+
+class City{
+	public:
+		City(int ID_, int lifeValue_):cityID(ID_), lifeValue(lifeValue_), flagID(0), red(NULL), blue(NULL), lastRed(NULL), lastBlue(NULL){flagCount[1]=0;flagCount[2]=0;}
+		City(int ID_):cityID(ID_), lifeValue(0), flagID(0), red(NULL), blue(NULL), lastRed(NULL), lastBlue(NULL){flagCount[1]=0;flagCount[2]=0;}
+
+		void march_fromSide(City* ,const myTime&);
+		void march_fromSide(Headquarter*, const myTime&);
+		void march_prepare();
+		void lion_escape(const myTime&);
+		void shoot_toNext(City*, const myTime&);
+		void warrior_fight(const myTime&);
+		void fight_settle(const myTime&);
+		void raise_flag(const myTime&);
+
+		friend class Headquarter;
+	private:
+		int cityID;
+		int lifeValue;
+		int flagCount[3];
+		int flagID;
+		Warrior *red;
+		Warrior *blue;
+		Warrior *lastRed;
+		Warrior *lastBlue;
+
+};
+
+class Headquarter{
+	public:
+		Headquarter()	= default;
+		Headquarter(string name_, int baseLife_, vector <int> wLife_, vector <int> wAtk_, vector <int> order):
+			name(name_), lifeEnough(true), lifeValue(baseLife_), warriorLife(wLife_), warriorAtk(wAtk_), createOrder(order), nextCreate(createOrder.begin()), nextNum(1), taken(false), fbValue(0), curWarrior(NULL), enemyWarrior(NULL){}
+
+		bool get_lifeStatus(){return lifeEnough;}
+		string get_name(){return name;}
+		void print_curwpMessage(myTime time) const { if(curWarrior!=NULL){time.print_time(); cout << " "; curWarrior->print_wpMessage();}}
+		bool be_taken(const myTime&) const ;
+		bool create_warrior(myTime);
+		void print_bornMessage(myTime, const Warrior&);
+		void march_fromCity(City *, const myTime&);
+		void lion_escape(const myTime&);
+		void get_fbValue(int fbValue_){fbValue += fbValue_;}
+
+		friend class City;
+	private:
+		string name;
+		bool lifeEnough;
+		int lifeValue;
+		vector <int> warriorLife; //iceman, lion, wolf, ninja, dragon
+		vector <int> warriorAtk; //iceman, lion, wolf, ninja, dragon
+		vector <int> createOrder;
+		vector <int> ::	iterator nextCreate;
+		int nextNum;
+		bool taken;
+		int fbValue;
+		Warrior *curWarrior;
+		Warrior *enemyWarrior;
+		vector <Iceman*>	icemanQueue;
+		vector <Lion*> 		lionQueue;
+		vector <Wolf*> 		wolfQueue;
+		vector <Ninja*> 	ninjaQueue;
+		vector <Dragon*> 	dragonQueue;
+
+		Warrior* create_iceman(){
+			if(lifeValue >= warriorLife[0]){
+				int typeNum = icemanQueue.size() + 1;
+				Iceman *a = new Iceman(this, warriorLife[0], nextNum, typeNum, warriorAtk[0], name);
+				icemanQueue.push_back(a);
+				return a;
+			} else {
+#ifdef NDEBUG
+				cout << "create iceman failed" << endl;
+#endif
+			return NULL;
+			}
+		}
+
+		Warrior* create_lion(){
+			if(lifeValue >= warriorLife[1]){
+				int typeNum = lionQueue.size() + 1;
+				int loyalty = lifeValue - warriorLife[1];
+				Lion *a = new Lion(this, warriorLife[1], nextNum, loyalty, typeNum, warriorAtk[1], name);
+				lionQueue.push_back(a);
+				return a;
+			} 
+			else {
+#ifdef NDEBUG
+				cout << "create lion failed" << endl;
+#endif
+			return NULL;
+			}
+		}
+
+		Warrior* create_wolf(){
+			if(lifeValue >= warriorLife[2]){
+				int typeNum = wolfQueue.size() + 1;
+				Wolf *a = new Wolf(this, warriorLife[2], nextNum, typeNum, warriorAtk[2], name);
+				wolfQueue.push_back(a);
+				return a;
+			} else {
+#ifdef NDEBUG
+				cout << "create wolf failed" << endl;
+#endif
+			return NULL;
+			}
+		}
+
+		Warrior* create_ninja(){
+			if(lifeValue >= warriorLife[3]){
+				int typeNum = ninjaQueue.size() + 1;
+				Ninja *a = new Ninja(this, warriorLife[3], nextNum, typeNum, warriorAtk[3], name);
+				ninjaQueue.push_back(a);
+				return a;
+			} else {
+#ifdef NDEBUG
+				cout << "create ninja failed" << endl;
+#endif
+			return NULL;
+			}
+		}
+
+		Warrior* create_dragon(){
+			if(lifeValue >= warriorLife[4]){
+				int typeNum = dragonQueue.size() + 1;
+				double morale = (double) (lifeValue - warriorLife[4]) / warriorLife[4];
+				Dragon *a = new Dragon(this, warriorLife[4], nextNum, morale, typeNum, warriorAtk[4], name);
+				dragonQueue.push_back(a);
+				return a;
+			} else {
+#ifdef NDEBUG
+				cout << "create dragon failed" << endl;
+#endif
+			return NULL;
+			}
+		}
+
+};
+
 
 void Iceman::shoot(Warrior* enemy, const myTime& time) {
 	if(weapon!=NULL)
@@ -361,13 +540,6 @@ void Iceman::shoot(Warrior* enemy, const myTime& time) {
 			cout << endl;
 		}
 }
-
-//void Iceman::killed(const myTime &time){
-//	if(lifeValue <= 0)
-//		cout << " " << msName << " " << name << " " << warriorNum << " was killed in "
-//			 << "city " << cityID << endl;
-//	
-//}
 
 void Lion::shoot(Warrior* enemy, const myTime& time) {
 }
@@ -637,162 +809,97 @@ void Dragon::counter(Warrior* enemy, const myTime &time){
 		 << enemy->get_msName() << " " << enemy->get_warriorName() << " " 
 		 << enemy->warriorNum << " in city " << cityID << endl;
 }
+void Iceman::killed(const myTime &time){
+	if(lifeValue <= 0 && dieFight){
+		time.print_time();
+		cout << " " << msName << " " << name << " " << warriorNum << " was killed in "
+			 << "city " << cityID << endl;
+	}
+}
+void Lion::killed(const myTime &time){
+	if(lifeValue <= 0 && dieFight){
+		time.print_time();
+		cout << " " << msName << " " << name << " " << warriorNum << " was killed in "
+			 << "city " << cityID << endl;
+	}
+}
+void Wolf::killed(const myTime &time){
+	if(lifeValue <= 0 && dieFight){
+		time.print_time();
+		cout << " " << msName << " " << name << " " << warriorNum << " was killed in "
+			 << "city " << cityID << endl;
+	}
+}
+void Ninja::killed(const myTime &time){
+	if(lifeValue <= 0 && dieFight){
+		time.print_time();
+		cout << " " << msName << " " << name << " " << warriorNum << " was killed in "
+			 << "city " << cityID << endl;
+	}
+}
+void Dragon::killed(const myTime &time){
+	if(lifeValue <= 0 && dieFight){
+		time.print_time();
+		cout << " " << msName << " " << name << " " << warriorNum << " was killed in "
+			 << "city " << cityID << endl;
+	}
+}
 
-class City{
-	public:
-		City(int ID_, int lifeValue_):cityID(ID_), lifeValue(lifeValue_), flagID(0), red(NULL), blue(NULL), lastRed(NULL), lastBlue(NULL){flagCount[1]=0;flagCount[2]=0;}
-		City(int ID_):cityID(ID_), lifeValue(0), flagID(0), red(NULL), blue(NULL), lastRed(NULL), lastBlue(NULL){flagCount[1]=0;flagCount[2]=0;}
-
-		void warrior_fight(myTime &);
-		void march_fromSide(City* ,const myTime&);
-		void march_fromSide(Headquarter*, const myTime&);
-		void march_prepare();
-		void lion_escape(const myTime&);
-		void shoot_toNext(City*, const myTime&);
-
-		friend class Headquarter;
-	private:
-		int cityID;
-		int lifeValue;
-		int flagCount[3];
-		int flagID;
-		Warrior *red;
-		Warrior *blue;
-		Warrior *lastRed;
-		Warrior *lastBlue;
-
-};
-
-class Headquarter{
-	public:
-		Headquarter()	= default;
-		Headquarter(string name_, int baseLife_, vector <int> wLife_, vector <int> wAtk_, vector <int> order):
-			name(name_), lifeEnough(true), lifeValue(baseLife_), warriorLife(wLife_), warriorAtk(wAtk_), createOrder(order), nextCreate(createOrder.begin()), nextNum(1), taken(false), curWarrior(NULL), enemyWarrior(NULL){}
-
-		bool get_lifeStatus(){return lifeEnough;}
-		string get_name(){return name;}
-		void print_curwpMessage(myTime time) const { if(curWarrior!=NULL){time.print_time(); cout << " "; curWarrior->print_wpMessage();}}
-		bool be_taken(const myTime&) const ;
-		bool create_warrior(myTime);
-		void print_bornMessage(myTime, const Warrior&);
-		void march_fromCity(City *, const myTime&);
-		void lion_escape(const myTime&);
-
-		friend class City;
-	private:
-		string name;
-		bool lifeEnough;
-		int lifeValue;
-		vector <int> warriorLife; //iceman, lion, wolf, ninja, dragon
-		vector <int> warriorAtk; //iceman, lion, wolf, ninja, dragon
-		vector <int> createOrder;
-		vector <int> ::	iterator nextCreate;
-		int nextNum;
-		bool taken;
-		Warrior *curWarrior;
-		Warrior *enemyWarrior;
-		vector <Iceman*>	icemanQueue;
-		vector <Lion*> 		lionQueue;
-		vector <Wolf*> 		wolfQueue;
-		vector <Ninja*> 	ninjaQueue;
-		vector <Dragon*> 	dragonQueue;
-
-		Warrior* create_iceman(){
-			if(lifeValue >= warriorLife[0]){
-				int typeNum = icemanQueue.size() + 1;
-				Iceman *a = new Iceman(this, warriorLife[0], nextNum, typeNum, warriorAtk[0], name);
-				icemanQueue.push_back(a);
-				return a;
-			} else {
-#ifdef NDEBUG
-				cout << "create iceman failed" << endl;
-#endif
-			return NULL;
-			}
-		}
-
-		Warrior* create_lion(){
-			if(lifeValue >= warriorLife[1]){
-				int typeNum = lionQueue.size() + 1;
-				int loyalty = lifeValue - warriorLife[1];
-				Lion *a = new Lion(this, warriorLife[1], nextNum, loyalty, typeNum, warriorAtk[1], name);
-				lionQueue.push_back(a);
-				return a;
-			} 
-			else {
-#ifdef NDEBUG
-				cout << "create lion failed" << endl;
-#endif
-			return NULL;
-			}
-		}
-
-		Warrior* create_wolf(){
-			if(lifeValue >= warriorLife[2]){
-				int typeNum = wolfQueue.size() + 1;
-				Wolf *a = new Wolf(this, warriorLife[2], nextNum, typeNum, warriorAtk[2], name);
-				wolfQueue.push_back(a);
-				return a;
-			} else {
-#ifdef NDEBUG
-				cout << "create wolf failed" << endl;
-#endif
-			return NULL;
-			}
-		}
-
-		Warrior* create_ninja(){
-			if(lifeValue >= warriorLife[3]){
-				int typeNum = ninjaQueue.size() + 1;
-				Ninja *a = new Ninja(this, warriorLife[3], nextNum, typeNum, warriorAtk[3], name);
-				ninjaQueue.push_back(a);
-				return a;
-			} else {
-#ifdef NDEBUG
-				cout << "create ninja failed" << endl;
-#endif
-			return NULL;
-			}
-		}
-
-		Warrior* create_dragon(){
-			if(lifeValue >= warriorLife[4]){
-				int typeNum = dragonQueue.size() + 1;
-				double morale = (double) (lifeValue - warriorLife[4]) / warriorLife[4];
-				Dragon *a = new Dragon(this, warriorLife[4], nextNum, morale, typeNum, warriorAtk[4], name);
-				dragonQueue.push_back(a);
-				return a;
-			} else {
-#ifdef NDEBUG
-				cout << "create dragon failed" << endl;
-#endif
-			return NULL;
-			}
-		}
-
-};
-
-void City::warrior_fight(myTime &time){
-	if(red!=NULL && blue!=NULL){
-		if(red->get_lifeValue() > 0 && blue->get_lifeValue() > 0){
-			if(flagID == 0){
-				if(cityID%2 == 1){
-					red->attack(blue, time);
-					blue->counter(red, time);
-				}else {
-					blue->attack(red, time);
-					red->counter(blue, time);
-				}
-			}else if(flagID == 1){
-				red->attack(blue, time);
-				blue->counter(red, time);
-			}else if(flagID == 2){
-				blue->attack(red, time);
-				red->counter(blue, time);
-			}else {
-				cout << "********error flagID********" << endl;
-			}
-		}
+void Iceman::win(Warrior* enemy, int cityValue, const myTime &time){
+	wonFlag = true;
+	master->get_fbValue(cityValue);	
+	time.print_time();
+	cout << " " << msName << " " << name << " " << warriorNum << " earned "
+		 << cityValue << " elements for his headquarter" << endl;
+}
+void Lion::win(Warrior* enemy, int cityValue, const myTime &time){
+	wonFlag = true;
+	master->get_fbValue(cityValue);	
+	time.print_time();
+	cout << " " << msName << " " << name << " " << warriorNum << " earned "
+		 << cityValue << " elements for his headquarter" << endl;
+}
+void Wolf::win(Warrior* enemy, int cityValue, const myTime &time){
+	wonFlag = true;
+	if(weapon==NULL)
+		weapon = enemy->seizedWp();
+	master->get_fbValue(cityValue);	
+	time.print_time();
+	cout << " " << msName << " " << name << " " << warriorNum << " earned "
+		 << cityValue << " elements for his headquarter" << endl;
+}
+void Ninja::win(Warrior* enemy, int cityValue, const myTime &time){
+	wonFlag = true;
+	master->get_fbValue(cityValue);	
+	time.print_time();
+	cout << " " << msName << " " << name << " " << warriorNum << " earned "
+		 << cityValue << " elements for his headquarter" << endl;
+}
+void Dragon::win(Warrior* enemy, int cityValue, const myTime &time){
+	wonFlag = true;
+	master->get_fbValue(cityValue);	
+	morale -= 0.2;
+	if(morale >= 0.8){
+		time.print_time();
+		cout << " " << msName << " " << name << " " << warriorNum <<" yelled in city "
+			 << cityID << endl;
+	}
+	time.print_time();
+	cout << " " << msName << " " << name << " " << warriorNum << " earned "
+		 << cityValue << " elements for his headquarter" << endl;
+}
+void Iceman::deuce(Warrior* enemy, const myTime &time){}
+void Lion::deuce(Warrior* enemy, const myTime &time){
+	loyalty -= k;
+}
+void Wolf::deuce(Warrior* enemy, const myTime &time){}
+void Ninja::deuce(Warrior* enemy, const myTime &time){}
+void Dragon::deuce(Warrior* enemy, const myTime &time){
+	morale -= 0.2;
+	if(morale >= 0.8){
+		time.print_time();
+		cout << " " << msName << " " << name << " " << warriorNum <<" yelled in city "
+			 << cityID << endl;
 	}
 }
 
@@ -898,6 +1005,86 @@ void City::shoot_toNext(City* next, const myTime &time){
 		cout << "******error city input(same) for shoot***********" << endl;
 		
 }
+
+void City::warrior_fight(const myTime &time){
+	if(red!=NULL && blue!=NULL){
+		if(red->get_lifeValue() > 0 && blue->get_lifeValue() > 0){
+			if(flagID == 0){
+				if(cityID%2 == 1){
+					red->attack(blue, time);
+					blue->counter(red, time);
+					red->killed(time);
+					blue->killed(time);
+				}else {
+					blue->attack(red, time);
+					red->counter(blue, time);
+					red->killed(time);
+					blue->killed(time);
+				}
+			}else if(flagID == 1){
+				red->attack(blue, time);
+				blue->counter(red, time);
+				red->killed(time);
+				blue->killed(time);
+			}else if(flagID == 2){
+				blue->attack(red, time);
+				red->counter(blue, time);
+				red->killed(time);
+				blue->killed(time);
+			}else {
+				cout << "********error flagID********" << endl;
+			}
+		}
+	}
+}
+
+void City::fight_settle(const myTime& time){
+	if(red!=NULL && blue!=NULL){
+		if(red->get_lifeValue() >0 && blue->get_lifeValue() >0){
+			red->deuce(blue, time);
+			blue->deuce(red, time);
+			flagCount[1] = 0;
+			flagCount[2] = 0;
+			raise_flag(time);
+		} else if(red->get_lifeValue() <=0 && blue->get_lifeValue() >0){
+			blue->win(red, lifeValue, time);
+			delete red;
+			red = NULL;
+
+			flagCount[2] ++;
+			flagCount[1] = 0;
+			raise_flag(time);
+		} else if(red->get_lifeValue() >0 && blue->get_lifeValue() <=0){
+			red->win(blue, lifeValue, time);
+			delete blue;
+			blue = NULL;
+
+			flagCount[1] ++;
+			flagCount[2] = 0;
+			raise_flag(time);
+		} else {
+			cout << "********error fight settle(all die)*********" << endl;
+		}
+	}
+}
+
+void City::raise_flag(const myTime &time){
+	if(flagCount[1] == 2){
+		flagID = 1;
+		time.print_time();
+		cout << " red flag raised in city " << cityID << endl; 
+	}
+	if(flagCount[2] == 2){
+		flagID = 2;
+		time.print_time();
+		cout << " blue flag raised in city " << cityID << endl; 
+	}
+	if(flagCount[1] < 2 && flagCount[2] < 2)
+		flagID = 0;
+	if(flagCount[1] >= 2 && flagCount[2] >= 2)
+		cout << "*********erro flagCount in raise_flag(all gt 2)********" << endl;
+}
+
 
 void Headquarter::lion_escape(const myTime &time){
 	Lion *tmp;

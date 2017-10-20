@@ -114,6 +114,7 @@ int main(){
 
 			for(auto j=citys.begin(); j!=citys.end(); ++j){
 				(*j).warrior_fight(time);
+				(*j).fight_settle(time);
 			}
 
 //#ifdef MYDEBUG
