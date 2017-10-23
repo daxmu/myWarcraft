@@ -25,7 +25,7 @@ int main(){
 //	cout << "1111111111111111" << endl;
 //#endif
 		myTime time(0);
-		cout << "Case:" << i << endl;
+		cout << "Case " << i << ":" << endl;
 		cin >> base_life >> city_num >> arrow_R >> loyalty_K >> max_time;
 		cin >> dragon_life >> ninja_life >> iceman_life >> lion_life >> wolf_life;
 		cin >> dragon_atk >> ninja_atk >> iceman_atk >> lion_atk >> wolf_atk;
@@ -79,7 +79,10 @@ int main(){
 
 			for(auto j = citys.begin(); j!=citys.end(); ++j)
 				(*j).march_prepare();
+
+			bool taken;
 			red.march_fromCity(&(*citys.begin()), time);
+			taken |= red.be_taken(time);
 			for(auto j = citys.begin(); j!=citys.end(); ++j){
 				if(j==citys.begin())
 					(*j).march_fromSide(&red, time);
@@ -91,22 +94,42 @@ int main(){
 					(*j).march_fromSide(&(*(j+1)),time);
 			}
 			blue.march_fromCity(&(*(citys.end()-1)), time);
-			bool taken;
-			taken |= red.be_taken(time);
 			taken |= blue.be_taken(time);
 			if(taken)
 				break;
 			
+			//min 20 generate life
+			time.set_min(20);
+			if(time.gthan(max_time)) break;
+
+			for(auto j=citys.begin(); j!=citys.end(); ++j)
+				(*j).gen_life();
+
+			//min 30 collect life
+			time.set_min(30);
+			if(time.gthan(max_time)) break;
+
+			for(auto j=citys.begin(); j!=citys.end(); ++j)
+				(*j).exclusive(time);
+			red.set_fbValue();
+			blue.set_fbValue();
+
 			//min 35 warrior shoot
 			time.set_min(35);
 			if(time.gthan(max_time)) break;
 
 			for(auto j=citys.begin(); j!=citys.end(); ++j){
-				if(j!=citys.end())
+				if(j!=citys.end()-1)
 					(*j).shoot_toNext(&(*(j+1)),time);
 				if(j!=citys.begin())
 					(*j).shoot_toNext(&(*(j-1)),time);
 			}
+
+			//min 38 warrior shoot
+			time.set_min(38);
+			if(time.gthan(max_time)) break;
+			for(auto j=citys.begin(); j!=citys.end(); ++j)
+				(*j).use_bomb(time);
 
 			//min 40 warrior fight
 			time.set_min(40);
@@ -116,15 +139,31 @@ int main(){
 				(*j).warrior_fight(time);
 				(*j).fight_settle(time);
 			}
+			//reward warrior life
+			for(auto j=citys.begin(); j!=citys.end(); ++j)
+				(*j).reward_life();
+			red.set_fbValue();
+			blue.set_fbValue();
+
+			//min 50 report headquarter lifeValue
+			time.set_min(50);
+			if(time.gthan(max_time)) break;
+			red.report_lifeValue(time);
+			blue.report_lifeValue(time);
 
 //#ifdef MYDEBUG
 //	cout << "4444444444444444" << endl;
 //#endif
+			//min 55 report weapon message
 			time.set_min(55);
 			if(time.gthan(max_time)) break;
 
-			red.print_curwpMessage(time);
-			blue.print_curwpMessage(time);
+			for(auto j=citys.begin(); j!=citys.end(); ++j)
+				(*j).report_weapon(1,time);
+			blue.report_weapon(time);
+			red.report_weapon(time);
+			for(auto j=citys.begin(); j!=citys.end(); ++j)
+				(*j).report_weapon(2,time);
 
 			time.hour_inc();
 		}
